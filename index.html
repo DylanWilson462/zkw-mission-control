@@ -2123,6 +2123,24 @@ function escapeHtml(str) {
 }
 
 // ============================================================
+// SEED DEFAULT AGENTS
+// ============================================================
+function seedDefaultAgents() {
+  const existing = LS.get('agents', []);
+  if (existing.some(a => a.name === 'Buyer Side Marketer')) return;
+  existing.push({
+    name: 'Buyer Side Marketer',
+    emoji: '📣',
+    tag: 'Ads · Decks · Drive',
+    desc: 'Creates the full marketing package for every deal listing: HTML slide deck (GitHub Pages), 5 X Post ads, 2 Note ads, 1 P&L ad, ad copy, and delivers everything to Google Drive. Send a CIM to trigger.',
+    model: 'anthropic/claude-sonnet-4-6',
+    skillFile: 'agents/buyer-side-marketer/skill.md',
+    memoryFile: 'agents/buyer-side-marketer/memory.md'
+  });
+  LS.set('agents', existing);
+}
+
+// ============================================================
 // SEED DEFAULT SKILLS
 // ============================================================
 function seedDefaultSkills() {
@@ -2359,6 +2377,7 @@ Only include if confirmed in the CIM:
 // INIT
 // ============================================================
 function init() {
+  seedDefaultAgents();
   seedDefaultSkills();
   loadMetrics();
   renderFeed();
