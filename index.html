@@ -656,6 +656,33 @@
     td:first-child { color: var(--text); font-weight: 500; }
     .usage-empty { text-align: center; padding: 3rem; color: var(--text3); font-size: 13px; }
 
+    /* FILE SYNC */
+    .sync-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11px; font-weight: 500;
+      padding: 2px 8px; border-radius: 20px;
+    }
+    .sync-badge.synced { background: rgba(82,201,122,0.12); color: var(--green); }
+    .sync-badge.browser { background: var(--glass); color: var(--text3); }
+    .sync-badge.syncing { background: rgba(224,140,58,0.12); color: var(--orange); }
+    .sync-server-bar {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      padding: 8px 16px; border-radius: 10px;
+      font-size: 12px; font-weight: 500;
+      display: flex; align-items: center; gap: 8px;
+      backdrop-filter: blur(20px); z-index: 200;
+      transition: all 0.3s ease; cursor: default;
+    }
+    .sync-server-bar.connected { background: rgba(82,201,122,0.12); border: 1px solid rgba(82,201,122,0.25); color: var(--green); }
+    .sync-server-bar.disconnected { background: var(--glass); border: 1px solid var(--border); color: var(--text3); }
+    .file-path-input {
+      width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      border-radius: 9px; padding: 9px 13px; font-size: 12px; color: var(--text2);
+      outline: none; font-family: 'SF Mono', 'Fira Code', monospace; transition: border-color 0.2s;
+    }
+    .file-path-input:focus { border-color: var(--accent-border); }
+    .file-path-input::placeholder { color: var(--text3); }
+
     /* ==================== MODAL ==================== */
     .modal-overlay {
       position: fixed; inset: 0;
@@ -1073,6 +1100,12 @@
 
 </main>
 
+<!-- SERVER STATUS BAR -->
+<div class="sync-server-bar disconnected" id="serverBar" title="Run start-mission-control.sh for file sync">
+  <span id="serverBarDot">⚪</span>
+  <span id="serverBarText">File sync offline</span>
+</div>
+
 <!-- ====== MODALS ====== -->
 
 <!-- Metric Edit Modal -->
@@ -1206,6 +1239,14 @@
       <div class="form-group">
         <label class="form-label">Description</label>
         <input type="text" class="form-input" id="skillDescInput" placeholder="What does this skill do?">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Linked File <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(optional — syncs to workspace file when server is running)</span></label>
+        <input type="text" class="file-path-input" id="skillFilePath" placeholder="e.g. agents/buyer-side-marketer/skill.md">
+        <div style="display:flex;gap:8px;margin-top:6px;">
+          <button class="btn btn-ghost btn-sm" onclick="loadFromFile()" id="loadFromFileBtn">📂 Load from file</button>
+          <span id="skillSyncStatus"></span>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">Content / Prompt</label>
@@ -1835,7 +1876,10 @@ function renderSkills() {
         </div>
       </div>
       <div class="skill-footer">
-        <span class="skill-chars">${(s.content || '').length.toLocaleString()} chars</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="skill-chars">${(s.content || '').length.toLocaleString()} chars</span>
+          ${s.filePath ? `<span class="sync-badge synced" title="${escapeHtml(s.filePath)}">📁 Linked</span>` : '<span class="sync-badge browser">Browser only</span>'}
+        </div>
         <div class="skill-actions">
           <button class="btn btn-ghost btn-sm" onclick="editSkill(${i})">Edit</button>
           <button class="btn btn-ghost btn-sm" onclick="buildWithClaude(${i})" style="color:var(--accent)">✨ Claude</button>
@@ -1849,13 +1893,28 @@ function renderSkills() {
 function openSkillModal(idx) {
   document.getElementById('skillEditId').value = idx !== undefined ? idx : '';
   document.getElementById('skillModalTitle').textContent = idx !== undefined ? 'Edit Skill' : 'New Skill';
+  document.getElementById('skillSyncStatus').innerHTML = '';
   if (idx !== undefined) {
     const s = LS.get('skills', [])[idx];
     document.getElementById('skillName').value = s.name || '';
     document.getElementById('skillDescInput').value = s.desc || '';
     document.getElementById('skillContent').value = s.content || '';
+    document.getElementById('skillFilePath').value = s.filePath || '';
+    // Auto-load from file if linked and server online
+    if (s.filePath && serverOnline) {
+      document.getElementById('skillSyncStatus').innerHTML = '<span class="sync-badge syncing">Loading from file...</span>';
+      readFile(s.filePath).then(content => {
+        if (content !== null) {
+          document.getElementById('skillContent').value = content;
+          updateSkillCharCount();
+          document.getElementById('skillSyncStatus').innerHTML = '<span class="sync-badge synced">✓ Loaded from file</span>';
+        } else {
+          document.getElementById('skillSyncStatus').innerHTML = '<span class="sync-badge browser">File not found — using saved copy</span>';
+        }
+      });
+    }
   } else {
-    ['skillName','skillDescInput','skillContent'].forEach(id => document.getElementById(id).value = '');
+    ['skillName','skillDescInput','skillContent','skillFilePath'].forEach(id => document.getElementById(id).value = '');
   }
   updateSkillCharCount();
   openModal('skillModal');
@@ -1870,19 +1929,25 @@ function updateSkillCharCount() {
   document.getElementById('skillCharCount').textContent = len.toLocaleString() + ' characters';
 }
 
-function saveSkill() {
+async function saveSkill() {
   const skills = LS.get('skills', []);
+  const filePath = document.getElementById('skillFilePath').value.trim();
   const data = {
     name: document.getElementById('skillName').value.trim(),
     desc: document.getElementById('skillDescInput').value.trim(),
     content: document.getElementById('skillContent').value,
+    filePath: filePath || undefined,
     updated: new Date().toISOString()
   };
   if (!data.name) return alert('Skill name required.');
   const idx = document.getElementById('skillEditId').value;
   if (idx !== '') skills[+idx] = data; else skills.push(data);
-  LS.set('skills', skills); renderSkills(); closeModal('skillModal');
+  LS.set('skills', skills); renderSkills();
+  // Sync to file if linked
+  if (filePath) await saveSkillToFile(filePath, data.content);
   addActivityAuto(`${idx !== '' ? 'Updated' : 'Created'} skill: ${data.name}`, 'accent');
+  if (!filePath) closeModal('skillModal');
+  else setTimeout(() => closeModal('skillModal'), 800);
 }
 
 function deleteSkill(i) {
@@ -2123,6 +2188,87 @@ function escapeHtml(str) {
 }
 
 // ============================================================
+// FILE SYNC (only active when running via local server)
+// ============================================================
+const SERVER = 'http://localhost:3747';
+let serverOnline = false;
+
+async function checkServer() {
+  try {
+    const r = await fetch(SERVER + '/api/status', { signal: AbortSignal.timeout(800) });
+    serverOnline = r.ok;
+  } catch { serverOnline = false; }
+  updateServerBar();
+}
+
+function updateServerBar() {
+  const bar  = document.getElementById('serverBar');
+  const dot  = document.getElementById('serverBarDot');
+  const text = document.getElementById('serverBarText');
+  if (serverOnline) {
+    bar.className  = 'sync-server-bar connected';
+    dot.textContent  = '🟢';
+    text.textContent = 'File sync live';
+  } else {
+    bar.className  = 'sync-server-bar disconnected';
+    dot.textContent  = '⚪';
+    text.textContent = 'File sync offline';
+  }
+}
+
+async function readFile(relPath) {
+  if (!serverOnline) return null;
+  try {
+    const r = await fetch(`${SERVER}/api/read?path=${encodeURIComponent(relPath)}`);
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d.content;
+  } catch { return null; }
+}
+
+async function writeFile(relPath, content) {
+  if (!serverOnline) return false;
+  try {
+    const r = await fetch(`${SERVER}/api/write`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: relPath, content })
+    });
+    return r.ok;
+  } catch { return false; }
+}
+
+async function loadFromFile() {
+  const filePath = document.getElementById('skillFilePath').value.trim();
+  if (!filePath) { alert('Enter a file path first.'); return; }
+  if (!serverOnline) { alert('File sync server not running.\n\nStart it with:\n  ./start-mission-control.sh'); return; }
+  const statusEl = document.getElementById('skillSyncStatus');
+  statusEl.innerHTML = '<span class="sync-badge syncing">Loading...</span>';
+  const content = await readFile(filePath);
+  if (content === null) {
+    statusEl.innerHTML = '<span class="sync-badge browser">File not found</span>';
+    return;
+  }
+  document.getElementById('skillContent').value = content;
+  updateSkillCharCount();
+  statusEl.innerHTML = '<span class="sync-badge synced">✓ Loaded from file</span>';
+}
+
+async function saveSkillToFile(relPath, content) {
+  const statusEl = document.getElementById('skillSyncStatus');
+  if (!relPath || !serverOnline) return;
+  statusEl.innerHTML = '<span class="sync-badge syncing">Saving to file...</span>';
+  const ok = await writeFile(relPath, content);
+  statusEl.innerHTML = ok
+    ? '<span class="sync-badge synced">✓ Saved to file</span>'
+    : '<span class="sync-badge browser">⚠ File save failed</span>';
+}
+
+// Poll server every 5s
+checkServer();
+setInterval(checkServer, 5000);
+
+// ============================================================
 // SEED DEFAULT AGENTS
 // ============================================================
 function seedDefaultAgents() {
@@ -2150,6 +2296,7 @@ function seedDefaultSkills() {
   const zkwSkill = {
     name: 'ZKW Marketing Package',
     desc: 'Full workflow: slide deck + 8 image ads + ad copy + Google Drive delivery for every deal listing.',
+    filePath: 'agents/buyer-side-marketer/skill.md',
     content: `# ZKW Marketing Package — Master Skill
 
 **Trigger:** Dylan sends a CIM + says "Create marketing assets" or "make ads" or "we're selling [X]"
