@@ -2123,9 +2123,243 @@ function escapeHtml(str) {
 }
 
 // ============================================================
+// SEED DEFAULT SKILLS
+// ============================================================
+function seedDefaultSkills() {
+  const existing = LS.get('skills', []);
+  if (existing.some(s => s.name === 'ZKW Marketing Package')) return; // already seeded
+
+  const zkwSkill = {
+    name: 'ZKW Marketing Package',
+    desc: 'Full workflow: slide deck + 8 image ads + ad copy + Google Drive delivery for every deal listing.',
+    content: `# ZKW Marketing Package — Master Skill
+
+**Trigger:** Dylan sends a CIM + says "Create marketing assets" or "make ads" or "we're selling [X]"
+
+This skill governs the complete end-to-end workflow for creating and delivering all marketing assets for a ZKW deal listing.
+
+---
+
+## Full Package = 5 Deliverables
+
+1. HTML Slide Deck (pushed to GitHub Pages)
+2. 5 × X Post Ads (dark theme, Dylan's headshot)
+3. 2 × Note Ads (iPhone Notes style)
+4. 1 × P&L Ad (Instagram Story 9:16)
+5. Ad Copy (primary text + 3 headlines + description)
+
+On approval → Google Drive folder delivery.
+
+---
+
+## STEP 1: SLIDE DECK
+
+### Rules
+- 14–16 slides, single self-contained HTML file
+- Fonts: Anton (headers), Montserrat (body) from Google Fonts
+- White background, black text, ZKW logo bottom-left (embed as base64)
+- ZKW logo path: /Users/george/.openclaw/workspace/slideshows/zkw-logo.png
+- Template base: /Users/george/.openclaw/workspace/slideshows/project-tint.html
+- P&L and Returns slides: must use justify-content: flex-start via .slide-compact class — NEVER centered (clips overflow content)
+- Tone: Top-of-funnel only. Job = get the call booked. No downsides, no red flags, no weakness framing. Save negatives for the call.
+- Accuracy: Cross-reference every stat against the CIM. Do NOT include recurring %, owner-removed, AI, SOPs, or clean books unless confirmed in the CIM.
+- Do NOT mention: "no CRM," "organic referrals," "founder dependency," "no SOPs," "no formal systems" — even framed as an upside.
+
+### Slide Structure
+1. Hero / Title
+2. What We Will Cover (TOC)
+3–5. Deal Highlights (✅ checkmark bullets, 2 per slide)
+6–10. Company Overview (bullet points, 2 per slide)
+11. Financials — full P&L table (Revenue, expenses, EBITDA, add-backs, Adj. EBITDA)
+12. Projected Returns (SBA financing breakdown)
+13. Why We're Selling
+14–15. Summary (checkmark bullets)
+16. Next Steps — ends with "👇 Book your call below" — NO button (landing page handles CTA)
+
+### Deploy
+- Save to: /Users/george/.openclaw/workspace/slideshows/[project-name].html
+- Push to GitHub Pages: https://github.com/DylanWilson462/zkw-decks
+- Live URL: https://dylanwilson462.github.io/zkw-decks/slideshows/[project-name].html
+- ⚠️ Must include /slideshows/ in the URL or it 404s
+
+---
+
+## STEP 2: X POST ADS (5 total)
+
+### Specs
+- 750×750px square, dark mode
+- Profile: Dylan Wilson · @dylanwilson · blue verified badge
+- Headshot: /Users/george/.openclaw/media/inbound/file_36---dd5a2d2f-713f-4ebc-9255-65e25398d221.png
+- Timestamp: 10:18 AM · Feb 9, 2026 · 600K Views
+- Engagement: 1.5K comments · 1.9K retweets · 2K likes · 2K bookmarks
+
+### 3 Rotating Formats (spread across 5 ads)
+1. Plain text + blue highlight — hook stat, short line facts, one key metric in #1d9bf0, closer, CTA
+2. Green checkbox list — hook, 5–6 ✅ bullet points (#00ba7c bg), closer, CTA
+3. Minimal — hook, 2–3 punchy standalone lines, CTA
+
+### Copy Rules
+- Always first-person — written as Dylan posting about HIS deal ("I'm selling..." / "We're selling...")
+- Hook = biggest number or most surprising fact, first-person framing
+- NO asking price / valuation multiple ever
+- Always end with: Tap to learn more to get deal details.
+- Use ✅ Apple emoji for checkboxes (renders natively on macOS WebKit)
+
+### Technical Pipeline
+1. Working dir: /tmp/[deal]_ads/
+2. Symlink playwright: ln -sf /tmp/maple_ads/node_modules /tmp/[deal]_ads/node_modules
+3. Write HTML to /tmp/[deal]_ads/ad1.html through ad5.html
+4. CSS: tweet width: 750px, background #15202b, font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif — set explicitly on html/body or it breaks
+5. Embed headshot as base64 inline: base64 -i [file] | tr -d '\n' > headshot_b64.txt — NOT file:// URL
+6. Screenshot .tweet element via Playwright WebKit → raw PNGs
+7. Composite: magick -size 750x750 xc:#15202b raw.png -gravity Center -composite final.png
+8. Save finals to /Users/george/.openclaw/workspace/[deal]_ads/
+
+---
+
+## STEP 3: NOTE ADS (2 total)
+
+### Specs
+- 750×750px square, white background, iPhone Notes style
+
+### 2 Variations
+1. Stat-first — lowercase title leading with biggest financial hook
+2. Feature-first — Title Case describing business characteristics
+
+### Both Variations Share
+- iOS Notes chrome bar (back ‹ button left, 3 icon buttons right)
+- Date: February 9, 2026 at 10:08 AM — small grey centered
+- Bullet list with en dashes –, key words bolded
+- CTA: Tap below for full P&L and deal structure
+- Font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif
+- Title: 40px, weight 800, #111111, line-height 1.13
+- Bullets: 19px, weight 400, #1a1a1a
+- No asking price
+
+### Technical Pipeline
+1. Write HTML to /tmp/[deal]_ads/note1.html and note2.html
+2. Screenshot .note element → raw PNGs
+3. Composite: magick -size 750x750 xc:#ffffff raw.png -gravity Center -composite final.png
+
+---
+
+## STEP 4: P&L AD (1 total)
+
+### Specs
+- Instagram Story portrait, 9:16 ratio
+
+### Layout (top to bottom)
+1. Yellow banner — #FFE500, rounded rect, bold Arial Black, top highlight line
+2. P&L header — "Profit & Loss Statement / For the Year Ended 31 December [YEAR]"
+3. P&L table — navy #1E3A5F header row, grey borders, left labels, right numbers
+4. Red diagonal arrow — #E8192C, lower-left pointing up-right to SDE value. Shaft = 2x head length. Does NOT cover SDE label.
+
+### Bold P&L Rows
+Gross Profit | EBITDA (Before Add-Backs) | Adjusted EBITDA | Seller's Disc. Earnings (SDE)
+
+### Standard Row Order
+Revenues / Gross Profit / Operating Expenses / EBITDA (Before Add-Backs) / Personal Expense Add-Backs / Adjusted EBITDA / Operator Draws / Seller's Disc. Earnings (SDE)
+
+### Technical Pipeline
+1. Generate base image with nano-banana-pro (2K res) — no arrow in prompt
+2. Script: /opt/homebrew/lib/node_modules/openclaw/skills/nano-banana-pro/scripts/generate_image.py
+3. Gemini API key: openclaw.json → models.providers.google.apiKey
+4. Run Python + Pillow arrow script (auto-detects SDE row via pixel scan)
+5. Venv: python3 -m venv /tmp/arrowenv && /tmp/arrowenv/bin/pip install pillow -q
+
+---
+
+## STEP 5: AD COPY
+
+### Primary Text
+- First-person hook (biggest stat)
+- 3 stat lines
+- Operator-removed line (only if confirmed in CIM)
+- CTA: Tap to learn more to get deal details.
+
+### 3 Headlines
+1. Monthly Recurring [profit] [descriptor] For Sale
+2. [Key feature] [descriptor] For Sale
+3. [$/mo profit]. [Key trait] Agency For Sale
+
+### Description
+Always: Priced to sell fast
+
+### Rules
+- NO asking price / valuation multiple in any copy
+- Extract stats from CIM: revenue, profit/EBITDA, margin %, years in business, team size, differentiators
+
+---
+
+## STEP 6: SEND FOR APPROVAL
+
+Send to Dylan: deck URL + 8 images + ad copy. Wait for approval before Drive delivery.
+
+---
+
+## STEP 7: GOOGLE DRIVE DELIVERY (on approval)
+
+⚠️ Do NOT use gog CLI — it hangs. Use Python + Drive API directly.
+
+### Credentials
+- Client ID + Secret: ~/Library/Application Support/gogcli/credentials.json
+- Tokens: ~/Library/Application Support/gogcli/tokens.json → key: dylan@zastrekentwilson.com
+- Refresh: POST https://oauth2.googleapis.com/token with grant_type=refresh_token
+- Reference script: /tmp/beacon_drive.py
+
+### Steps
+1. Create Google Doc with all copy + deck URL + responsive embed code
+2. Create Drive folder named "[Deal Name] Ads"
+3. Upload all 8 images to the folder
+4. Share with dylan@zastrekentwilson.com
+5. Send Dylan Drive folder link + deck URL
+
+### Responsive Embed Code (in every Google Doc)
+<div style="position:relative;width:100%;padding-bottom:56.25%;height:0;overflow:hidden;">
+  <iframe src="[DECK_URL]" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;" allowfullscreen></iframe>
+</div>
+
+---
+
+## WHAT MAKES AN AGENCY DEAL SELL
+
+Only include if confirmed in the CIM:
+- Recurring revenue (retainer) → 5x–7x EBITDA vs 3x–4.5x project-based
+- Owner removed → 7x–8x vs 3x–4x founder-dependent
+- Low client concentration → no client >10–15%, top 3 <25%
+- AI-integrated → 40–100% valuation premium
+- EBITDA margins 25–30%+ ideal; 50%+ exceptional
+- Always frame as discount to market comps (e.g. "1.74x vs 2.5x–3.9x")
+
+---
+
+## COMPLETED DEALS
+
+| Deal | Deck URL | Drive Folder |
+|------|----------|--------------|
+| Project Maple | https://dylanwilson462.github.io/zkw-decks/slideshows/project-maple.html | Ads only |
+| Project Beacon | https://dylanwilson462.github.io/zkw-decks/slideshows/project-beacon.html | https://drive.google.com/drive/folders/1iE63N3YweM5LqxT5Bkh4Cd1Xkhx7szck |
+
+---
+
+## SELLER PIPELINE CONTEXT
+
+- #1 deal killer: valuation gap — sellers expect 4–5x EBITDA; ZKW offers 1.5–3.25x
+- Most sellers are ambition-driven — want capital for next venture
+- Offer differentiators: all cash at close, no earn-out, no non-compete, 40–90 day close, asset sale (keep brand)
+- Key person risk + client concentration = biggest discount reasons`,
+    updated: new Date().toISOString()
+  };
+
+  existing.push(zkwSkill);
+  LS.set('skills', existing);
+}
+
+// ============================================================
 // INIT
 // ============================================================
 function init() {
+  seedDefaultSkills();
   loadMetrics();
   renderFeed();
   renderPriorities();
